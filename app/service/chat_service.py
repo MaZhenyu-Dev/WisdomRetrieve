@@ -293,10 +293,19 @@ def _write_side_effects_node(state: QAState) -> QAState:
     sources = state.get("sources", [])
     document_ids = state.get("document_ids") or _source_document_ids(sources)
     cache_hit = bool(state.get("cache_hit"))
+    history_refreshed = False
 
-    if not state.get("user_history_written"):
+    if cache_hit and not state.get("user_history_written"):
+        history_refreshed = _refresh_repeated_cache_hit_history(
+            db,
+            session_id=session_id,
+            question_hash=state["question_hash"],
+        )
+
+    if not history_refreshed and not state.get("user_history_written"):
         _append_history(db, session_id, "user", state["normalized_question"])
-    _append_history(db, session_id, "assistant", answer)
+    if not history_refreshed:
+        _append_history(db, session_id, "assistant", answer)
 
     if not cache_hit and state.get("cache_key"):
         _write_cached_response(
@@ -401,7 +410,48 @@ def _ensure_chat_session(db: Session, session_id: str, question: str) -> None:
 
 def _append_history(db: Session, session_id: str, role: str, content: str) -> None:
     db.add(ChatHistory(session_id=session_id, role=role, content=content))
+    _touch_chat_session(db, session_id)
     db.flush()
+
+
+def _refresh_repeated_cache_hit_history(
+    db: Session,
+    session_id: str,
+    question_hash: str,
+) -> bool:
+    recent_rows = list(
+        db.scalars(
+            select(ChatHistory)
+            .where(ChatHistory.session_id == session_id)
+            .order_by(ChatHistory.create_time.desc(), ChatHistory.id.desc())
+            .limit(2)
+        )
+    )
+    if len(recent_rows) < 2:
+        return False
+
+    assistant_row, user_row = recent_rows[0], recent_rows[1]
+    if assistant_row.role != "assistant" or user_row.role != "user":
+        return False
+    if _question_hash(user_row.content) != question_hash:
+        return False
+
+    now = datetime.now()
+    user_row.create_time = now
+    assistant_row.create_time = now
+    _touch_chat_session(db, session_id, now=now)
+    db.flush()
+    return True
+
+
+def _touch_chat_session(
+    db: Session,
+    session_id: str,
+    now: datetime | None = None,
+) -> None:
+    session = db.scalar(select(ChatSession).where(ChatSession.session_id == session_id))
+    if session is not None:
+        session.updated_at = now or datetime.now()
 
 
 def _recent_history(db: Session, session_id: str) -> list[ChatHistory]:

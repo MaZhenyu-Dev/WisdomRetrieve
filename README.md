@@ -44,8 +44,16 @@ Invoke-RestMethod -Method Delete http://127.0.0.1:8000/api/document/1
 
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/chat -ContentType 'application/json' -Body '{"session_id":"demo","question":"请根据知识库回答问题"}'
+Invoke-WebRequest -Method Post -Uri http://127.0.0.1:8000/api/chat -ContentType 'application/json' -Body '{"session_id":"demo","question":"请根据知识库回答问题","stream":true}'
 Invoke-RestMethod 'http://127.0.0.1:8000/api/chat/history?session_id=demo'
 ```
+
+Set `stream` to `true` to receive `text/event-stream` events on the same endpoint:
+
+- `sources`: retrieved source metadata
+- `answer_delta`: incremental answer text
+- `done`: final answer and sources
+- `error`: stream-time error payload
 
 Repeated questions use Redis keys shaped like `qa:{question_hash}:kb:{version}:scope:{session}:top_k:{top_k}`.
 The cached payload stores `answer`, `sources`, and hit `document_ids`; upload, delete, and index rebuild bump the knowledge base version.
