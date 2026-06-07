@@ -1,0 +1,11 @@
+/* ============================================================
+   WisdomRetrieve · Style Entry Point
+   Loads design tokens, base, motion, Element Plus overrides,
+   and legacy view styles.
+   ============================================================ */
+
+@import "./styles/tokens.css";
+@import "./styles/base.css";
+@import "./styles/motion.css";
+@import "./styles/element-overrides.css";
+@import "./styles/legacy.css";

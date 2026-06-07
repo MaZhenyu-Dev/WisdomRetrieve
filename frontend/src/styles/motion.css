@@ -1,0 +1,349 @@
+/* ============================================================
+   WisdomRetrieve · Motion / Keyframes Library
+   Reusable keyframes & utility motion classes
+   ============================================================ */
+
+/* ---------- Keyframes ---------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rise-sm {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rise-lg {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mask-up {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes mask-down {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes slide-x {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-glow);
+  }
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes scroll-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes draw-line {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes ticker {
+  0% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes gradient-flow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+/* ---------- Utility entrance classes ---------- */
+.anim-rise {
+  animation: rise var(--d-slow) var(--ease-out) both;
+}
+.anim-rise-sm {
+  animation: rise-sm var(--d-base) var(--ease-out) both;
+}
+.anim-rise-lg {
+  animation: rise-lg var(--d-slower) var(--ease-out) both;
+}
+.anim-fade {
+  animation: fade var(--d-slow) var(--ease-out) both;
+}
+.anim-scale {
+  animation: scale-in var(--d-slow) var(--ease-spring) both;
+}
+.anim-mask-up {
+  animation: mask-up 700ms var(--ease-out) both;
+}
+.anim-mask-down {
+  animation: mask-down 700ms var(--ease-out) both;
+}
+.anim-slide-x {
+  animation: slide-x var(--d-slow) var(--ease-out) both;
+}
+.anim-float {
+  animation: float 5s var(--ease-in-out) infinite;
+}
+
+/* Stagger delays */
+.d-0 {
+  animation-delay: 0ms;
+}
+.d-1 {
+  animation-delay: 80ms;
+}
+.d-2 {
+  animation-delay: 160ms;
+}
+.d-3 {
+  animation-delay: 240ms;
+}
+.d-4 {
+  animation-delay: 320ms;
+}
+.d-5 {
+  animation-delay: 400ms;
+}
+.d-6 {
+  animation-delay: 480ms;
+}
+.d-7 {
+  animation-delay: 560ms;
+}
+.d-8 {
+  animation-delay: 640ms;
+}
+.d-9 {
+  animation-delay: 720ms;
+}
+
+/* ---------- Route transitions ---------- */
+.route-enter-active,
+.route-leave-active {
+  transition:
+    opacity var(--d-slow) var(--ease-out),
+    transform var(--d-slow) var(--ease-out),
+    filter var(--d-slow) var(--ease-out);
+}
+
+.route-enter-from {
+  opacity: 0;
+  transform: translateY(16px);
+  filter: blur(6px);
+}
+
+.route-leave-to {
+  opacity: 0;
+  transform: translateY(-12px);
+  filter: blur(4px);
+}
+
+/* Layout-level: hero-style rise */
+.layout-enter-active,
+.layout-leave-active {
+  transition:
+    opacity 320ms var(--ease-out),
+    transform 320ms var(--ease-out);
+}
+
+.layout-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.layout-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* ---------- List enter ---------- */
+.list-enter-active,
+.list-leave-active,
+.list-move {
+  transition: all 360ms var(--ease-out);
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.list-leave-active {
+  position: absolute;
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* ---------- Page reveal on scroll (utility, IntersectionObserver-driven) ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 720ms var(--ease-out),
+    transform 720ms var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

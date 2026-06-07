@@ -1,0 +1,187 @@
+/* ============================================================
+   WisdomRetrieve · Design Tokens
+   Direction: Deep Editorial (深色印刷感)
+   ============================================================ */
+
+:root {
+  /* ---------- Color · Surface ---------- */
+  --bg: #0a0a0c;
+  --bg-soft: #0f0f12;
+  --bg-elevated: #141418;
+  --bg-card: #16161b;
+  --bg-overlay: rgba(10, 10, 12, 0.72);
+  --bg-inverse: #f4f1ea;
+
+  /* ---------- Color · Line ---------- */
+  --line: rgba(244, 241, 234, 0.08);
+  --line-soft: rgba(244, 241, 234, 0.05);
+  --line-strong: rgba(244, 241, 234, 0.16);
+  --line-inverse: rgba(10, 10, 12, 0.08);
+
+  /* ---------- Color · Ink ---------- */
+  --ink: #f4f1ea;
+  --ink-soft: #d8d4ca;
+  --ink-muted: #8a8780;
+  --ink-faint: #5a5850;
+  --ink-inverse: #0a0a0c;
+
+  /* ---------- Color · Accent (Electric Blue) ---------- */
+  --accent: #5b8def;
+  --accent-strong: #7ba3ff;
+  --accent-soft: rgba(91, 141, 239, 0.14);
+  --accent-glow: rgba(91, 141, 239, 0.32);
+  --accent-ink: #061224;
+
+  /* ---------- Color · Signal ---------- */
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #5b8def;
+
+  /* ---------- Color · Brand Echo ---------- */
+  --signal-amber: #f5b342;
+  --signal-rose: #e8627c;
+
+  /* ---------- Type · Family ---------- */
+  --font-display:
+    "Fraunces", "Source Serif Pro", "Source Han Serif SC", "Noto Serif SC",
+    "Songti SC", serif;
+  --font-sans:
+    "Inter", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI",
+    sans-serif;
+  --font-mono:
+    "JetBrains Mono", "SF Mono", "Menlo", "Consolas", monospace;
+  --font-cjk: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+
+  /* ---------- Type · Scale (fluid) ---------- */
+  --text-xs: clamp(11px, 0.7vw, 12px);
+  --text-sm: clamp(12px, 0.78vw, 13px);
+  --text-base: clamp(14px, 0.9vw, 15px);
+  --text-md: clamp(15px, 0.95vw, 16px);
+  --text-lg: clamp(17px, 1.05vw, 18px);
+  --text-xl: clamp(20px, 1.3vw, 22px);
+  --text-2xl: clamp(24px, 1.6vw, 28px);
+  --text-3xl: clamp(32px, 2.2vw, 40px);
+  --text-4xl: clamp(40px, 3.2vw, 56px);
+  --text-5xl: clamp(52px, 4.4vw, 80px);
+  --text-6xl: clamp(64px, 6.5vw, 112px);
+  --text-7xl: clamp(80px, 9vw, 160px);
+
+  /* ---------- Type · Tracking ---------- */
+  --track-tight: -0.03em;
+  --track-snug: -0.015em;
+  --track-base: 0;
+  --track-wide: 0.04em;
+  --track-extra: 0.12em;
+  --track-mega: 0.2em;
+
+  /* ---------- Type · Weight ---------- */
+  --w-regular: 400;
+  --w-medium: 500;
+  --w-semibold: 600;
+  --w-bold: 700;
+  --w-black: 900;
+
+  /* ---------- Spacing (4-pt grid) ---------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 40px;
+  --s-9: 48px;
+  --s-10: 64px;
+  --s-11: 80px;
+  --s-12: 96px;
+  --s-13: 128px;
+  --s-14: 160px;
+
+  /* ---------- Radius (mostly sharp for editorial) ---------- */
+  --r-0: 0;
+  --r-1: 2px;
+  --r-2: 4px;
+  --r-3: 6px;
+  --r-4: 8px;
+  --r-5: 12px;
+  --r-pill: 999px;
+
+  /* ---------- Shadow ---------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 24px var(--accent-glow);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /* ---------- Easing ---------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---------- Duration ---------- */
+  --d-fast: 140ms;
+  --d-base: 240ms;
+  --d-slow: 420ms;
+  --d-slower: 720ms;
+  --d-slowest: 1100ms;
+
+  /* ---------- Layout ---------- */
+  --container: 1280px;
+  --container-wide: 1440px;
+  --container-narrow: 720px;
+  --nav-h: 64px;
+  --nav-h-large: 72px;
+
+  /* ---------- Z ---------- */
+  --z-base: 1;
+  --z-sticky: 50;
+  --z-nav: 80;
+  --z-overlay: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+
+  /* ---------- Element Plus overrides ---------- */
+  --el-color-primary: var(--accent);
+  --el-color-primary-light-3: #4a78d4;
+  --el-color-primary-light-5: #3a63bb;
+  --el-color-primary-light-7: #2a4ea1;
+  --el-color-primary-light-8: #1a3888;
+  --el-color-primary-light-9: #0c236e;
+  --el-color-primary-dark-2: var(--accent-strong);
+  --el-bg-color: transparent;
+  --el-bg-color-page: var(--bg);
+  --el-bg-color-overlay: var(--bg-elevated);
+  --el-text-color-primary: var(--ink);
+  --el-text-color-regular: var(--ink-soft);
+  --el-text-color-secondary: var(--ink-muted);
+  --el-text-color-placeholder: var(--ink-faint);
+  --el-border-color: var(--line);
+  --el-border-color-light: var(--line-soft);
+  --el-border-color-lighter: var(--line-soft);
+  --el-fill-color: var(--line-soft);
+  --el-fill-color-light: var(--line-soft);
+  --el-fill-color-blank: var(--bg-card);
+  --el-mask-color: rgba(0, 0, 0, 0.5);
+  --el-border-radius-base: 4px;
+  --el-border-radius-small: 2px;
+  --el-font-family: var(--font-sans);
+}
+
+/* Optional: light theme (not used in Direction A but tokenized) */
+[data-theme="light"] {
+  --bg: #f4f1ea;
+  --bg-soft: #ebe7dd;
+  --bg-elevated: #fffdf8;
+  --bg-card: #ffffff;
+  --ink: #0a0a0c;
+  --ink-soft: #2a2a32;
+  --ink-muted: #5a5850;
+  --ink-faint: #8a8780;
+  --line: rgba(10, 10, 12, 0.08);
+  --line-soft: rgba(10, 10, 12, 0.05);
+  --line-strong: rgba(10, 10, 12, 0.16);
+  --accent-ink: #ffffff;
+}
