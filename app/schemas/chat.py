@@ -35,6 +35,7 @@ class ChatHistoryMessage(BaseModel):
     session_id: str
     role: str
     content: str
+    sources: list[ChatSource] = Field(default_factory=list)
     create_time: datetime
 
 

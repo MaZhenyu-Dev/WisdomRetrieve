@@ -1,11 +1,12 @@
 import unittest
+import json
 from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from app.database.models import Base, ChatHistory, ChatSession
-from app.service.chat_service import _question_hash, _refresh_repeated_cache_hit_history
+from app.service.chat_service import get_chat_history, _question_hash, _refresh_repeated_cache_hit_history
 
 
 class CacheHitHistoryTests(unittest.TestCase):
@@ -96,6 +97,50 @@ class CacheHitHistoryTests(unittest.TestCase):
             rows = list(db.scalars(select(ChatHistory).order_by(ChatHistory.id.asc())))
             self.assertEqual(rows[0].create_time, old_time)
             self.assertEqual(rows[1].create_time, old_time + timedelta(seconds=1))
+
+    def test_history_messages_include_assistant_sources(self) -> None:
+        with self.session_factory() as db:
+            db.add(ChatSession(id=1, session_id="demo", title="hello"))
+            db.add_all(
+                [
+                    ChatHistory(
+                        id=1,
+                        session_id="demo",
+                        role="user",
+                        content="hello",
+                    ),
+                    ChatHistory(
+                        id=2,
+                        session_id="demo",
+                        role="assistant",
+                        content="answer",
+                        sources=json.dumps(
+                            [
+                                {
+                                    "document_id": 10,
+                                    "file": "handbook.pdf",
+                                    "page": 3,
+                                    "title": "Policy",
+                                    "chunk_index": 2,
+                                    "retrieval_sources": ["vector"],
+                                    "vector_score": 0.8,
+                                    "bm25_score": None,
+                                    "hybrid_score": 0.7,
+                                    "rerank_score": 0.9,
+                                }
+                            ]
+                        ),
+                    ),
+                ]
+            )
+            db.commit()
+
+            _, messages = get_chat_history(db, session_id="demo")
+
+            self.assertEqual(messages[0].sources, [])
+            self.assertEqual(len(messages[1].sources), 1)
+            self.assertEqual(messages[1].sources[0].file, "handbook.pdf")
+            self.assertEqual(messages[1].sources[0].page, 3)
 
 
 if __name__ == "__main__":

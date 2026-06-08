@@ -22,6 +22,7 @@
           >
             <button
               class="session-item"
+              :disabled="answering"
               @click="selectSession(session.session_id)"
             >
               <strong>{{ session.title || session.session_id }}</strong>
@@ -39,6 +40,15 @@
             </el-button>
           </div>
         </template>
+        <button
+          v-if="hasMoreSessions"
+          type="button"
+          class="load-more"
+          :disabled="sessionsPageLoading || answering"
+          @click="loadMoreSessions"
+        >
+          加载更多会话
+        </button>
       </div>
     </aside>
 
@@ -77,25 +87,26 @@
           </ul>
         </div>
 
-        <article
+        <button
+          v-if="messages.length > 0 && hasMoreHistory"
+          type="button"
+          class="load-more"
+          :disabled="historyPageLoading"
+          @click="loadOlderHistory"
+        >
+          加载更早消息
+        </button>
+
+        <ChatMessageItem
           v-for="message in messages"
           :key="message.id"
-          :class="['message-row', message.role === 'user' ? 'user' : 'assistant']"
-        >
-          <div class="message-meta">{{ message.role === "user" ? "你" : "WisdomRetrieve" }}</div>
-          <div v-if="message.role === 'assistant'" class="message-bubble markdown-body" v-html="renderMarkdown(message.content)"></div>
-          <div v-else class="message-bubble">{{ message.content }}</div>
-        </article>
+          :message="message"
+          :regenerating="answering"
+          @select="selectMessageSources"
+          @copy="copyMessage"
+          @regenerate="regenerateMessage"
+        />
 
-        <div v-if="answering && streaming" class="message-row assistant">
-          <div class="message-meta">WisdomRetrieve</div>
-          <div class="message-bubble thinking">
-            <span></span>
-            <span></span>
-            <span></span>
-            正在检索、重排并生成答案
-          </div>
-        </div>
       </div>
 
       <div class="composer">
@@ -129,15 +140,15 @@
           <p class="section-kicker">Citations</p>
           <h2>来源引用</h2>
         </div>
-        <el-tag effect="plain">{{ sources.length }} 条</el-tag>
+        <el-tag effect="plain">{{ activeSources.length }} 条</el-tag>
       </div>
 
       <div class="source-list">
-        <div v-if="sources.length === 0" class="empty-sources">
+        <div v-if="activeSources.length === 0" class="empty-sources">
           回答后会在这里展示命中文档、页码和检索分数。
         </div>
 
-        <div v-for="source in sources" :key="sourceKey(source)" class="source-card">
+        <div v-for="source in activeSources" :key="sourceKey(source)" class="source-card">
           <div class="source-title">
             <strong>{{ source.file }}</strong>
             <span v-if="source.page">P{{ source.page }}</span>
@@ -186,18 +197,17 @@ import {
   Search
 } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import MarkdownIt from "markdown-it";
-import { nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 
 import { deleteChatSession, getChatHistory, getChatSessions, streamQuestion } from "../api";
 import { extractErrorMessage } from "../api/http";
-import type { ChatHistoryMessage, ChatSession, ChatSource } from "../types";
+import ChatMessageItem from "../components/chat/ChatMessageItem.vue";
+import type { ChatMessage, ChatSession, ChatSource } from "../types";
 
 const CURRENT_SESSION_KEY = "wisdomretrieve_current_session";
 const DRAFT_SESSION_TITLE = "新的知识库会话";
-const SESSION_PAGE_SIZE = 100;
-const HISTORY_PAGE_SIZE = 100;
-const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
+const SESSION_PAGE_SIZE = 30;
+const HISTORY_PAGE_SIZE = 50;
 
 interface QuickQuestion {
   id: string;
@@ -216,21 +226,42 @@ const QUICK_QUESTIONS: QuickQuestion[] = [
 
 const sessions = ref<ChatSession[]>([]);
 const activeSessionId = ref(localStorage.getItem(CURRENT_SESSION_KEY) || "");
-const messages = ref<ChatHistoryMessage[]>([]);
-const sources = ref<ChatSource[]>([]);
+const messages = ref<ChatMessage[]>([]);
+const selectedSourceMessageId = ref<number | null>(null);
 const question = ref("");
 const answering = ref(false);
 const streaming = ref(false);
 const sessionsLoading = ref(false);
+const sessionsPageLoading = ref(false);
 const historyLoading = ref(false);
+const historyPageLoading = ref(false);
 const topK = ref(5);
 const messageList = ref<HTMLElement | null>(null);
 let streamAbortController: AbortController | null = null;
+let generationStopped = false;
+const sessionsPage = ref(1);
+const sessionsTotal = ref(0);
+const historyPage = ref(1);
+const historyTotal = ref(0);
 
-async function loadSessions() {
+const activeSources = computed(() => {
+  const selectedMessage = messages.value.find((message) => message.id === selectedSourceMessageId.value);
+  if (selectedMessage?.role === "assistant") {
+    return selectedMessage.sources ?? [];
+  }
+  const latestAssistant = [...messages.value].reverse().find((message) => message.role === "assistant");
+  return latestAssistant?.sources ?? [];
+});
+
+const hasMoreSessions = computed(() => sessions.value.filter((session) => !isDraftSession(session)).length < sessionsTotal.value);
+const hasMoreHistory = computed(() => historyPage.value > 1);
+
+async function loadSessions(reloadHistory = true) {
   sessionsLoading.value = true;
   try {
     const data = await getChatSessions(1, SESSION_PAGE_SIZE);
+    sessionsPage.value = 1;
+    sessionsTotal.value = data.total;
     const draft = sessions.value.find((session) => isDraftSession(session));
     const serverSessions = data.sessions;
     sessions.value = draft && !serverSessions.some((session) => session.session_id === draft.session_id)
@@ -247,9 +278,12 @@ async function loadSessions() {
       createSession();
     } else {
       localStorage.setItem(CURRENT_SESSION_KEY, activeSessionId.value);
+      if (!reloadHistory) {
+        return;
+      }
       if (isActiveDraftSession()) {
         messages.value = [];
-        sources.value = [];
+        selectedSourceMessageId.value = null;
       } else {
         await loadHistory();
       }
@@ -262,13 +296,33 @@ async function loadSessions() {
   }
 }
 
+async function loadMoreSessions() {
+  if (sessionsPageLoading.value || !hasMoreSessions.value) return;
+  sessionsPageLoading.value = true;
+  try {
+    const nextPage = sessionsPage.value + 1;
+    const data = await getChatSessions(nextPage, SESSION_PAGE_SIZE);
+    sessionsPage.value = nextPage;
+    sessionsTotal.value = data.total;
+    const existingIds = new Set(sessions.value.map((session) => session.session_id));
+    sessions.value = [
+      ...sessions.value,
+      ...data.sessions.filter((session) => !existingIds.has(session.session_id))
+    ];
+  } catch (error) {
+    ElMessage.error(extractErrorMessage(error));
+  } finally {
+    sessionsPageLoading.value = false;
+  }
+}
+
 function createSession() {
   const existingDraft = sessions.value.find((session) => isDraftSession(session));
   if (existingDraft) {
     activeSessionId.value = existingDraft.session_id;
     localStorage.setItem(CURRENT_SESSION_KEY, existingDraft.session_id);
     messages.value = [];
-    sources.value = [];
+    selectedSourceMessageId.value = null;
     return;
   }
 
@@ -286,13 +340,14 @@ function createSession() {
     ...sessions.value
   ];
   messages.value = [];
-  sources.value = [];
+  selectedSourceMessageId.value = null;
 }
 
 async function selectSession(sessionId: string) {
+  if (answering.value) return;
   activeSessionId.value = sessionId;
   localStorage.setItem(CURRENT_SESSION_KEY, sessionId);
-  sources.value = [];
+  selectedSourceMessageId.value = null;
   if (isActiveDraftSession()) {
     messages.value = [];
     return;
@@ -304,13 +359,48 @@ async function loadHistory() {
   if (!activeSessionId.value) return;
   historyLoading.value = true;
   try {
-    const data = await getChatHistory(activeSessionId.value, 1, HISTORY_PAGE_SIZE);
-    messages.value = data.messages;
+    const firstPage = await getChatHistory(activeSessionId.value, 1, HISTORY_PAGE_SIZE);
+    historyTotal.value = firstPage.total;
+    const latestPage = Math.max(1, Math.ceil(firstPage.total / HISTORY_PAGE_SIZE));
+    const data = latestPage === 1
+      ? firstPage
+      : await getChatHistory(activeSessionId.value, latestPage, HISTORY_PAGE_SIZE);
+    historyPage.value = latestPage;
+    historyTotal.value = data.total;
+    messages.value = data.messages.map(markDoneMessage);
+    selectedSourceMessageId.value = latestAssistantId(messages.value);
     await scrollToBottom();
   } catch (error) {
     ElMessage.error(extractErrorMessage(error));
   } finally {
     historyLoading.value = false;
+  }
+}
+
+async function loadOlderHistory() {
+  if (!activeSessionId.value || historyPageLoading.value || !hasMoreHistory.value) return;
+
+  const list = messageList.value;
+  const previousHeight = list?.scrollHeight ?? 0;
+  historyPageLoading.value = true;
+  try {
+    const previousPage = historyPage.value - 1;
+    const data = await getChatHistory(activeSessionId.value, previousPage, HISTORY_PAGE_SIZE);
+    historyPage.value = previousPage;
+    historyTotal.value = data.total;
+    const existingIds = new Set(messages.value.map((message) => message.id));
+    messages.value = [
+      ...data.messages.map(markDoneMessage).filter((message) => !existingIds.has(message.id)),
+      ...messages.value
+    ];
+    await nextTick();
+    if (list) {
+      list.scrollTop = list.scrollHeight - previousHeight + list.scrollTop;
+    }
+  } catch (error) {
+    ElMessage.error(extractErrorMessage(error));
+  } finally {
+    historyPageLoading.value = false;
   }
 }
 
@@ -324,15 +414,28 @@ async function ask() {
   if (!activeSessionId.value) createSession();
 
   const localId = Date.now();
+  const requestSessionId = activeSessionId.value;
+  const now = new Date().toISOString();
+  const assistantId = localId + 1;
   messages.value.push({
     id: localId,
-    session_id: activeSessionId.value,
+    session_id: requestSessionId,
     role: "user",
     content,
-    create_time: new Date().toISOString()
+    sources: [],
+    status: "done",
+    create_time: now
   });
-  const assistantId = localId + 1;
-  sources.value = [];
+  messages.value.push({
+    id: assistantId,
+    session_id: requestSessionId,
+    role: "assistant",
+    content: "",
+    sources: [],
+    status: "pending",
+    create_time: now
+  });
+  selectedSourceMessageId.value = assistantId;
   question.value = "";
   answering.value = true;
   streaming.value = true;
@@ -340,85 +443,122 @@ async function ask() {
 
   const controller = new AbortController();
   streamAbortController = controller;
+  generationStopped = false;
+  let cacheHit = false;
+  let cachedAnswer = "";
+  let completed = false;
+  let failed = false;
 
-  const ensureAssistant = (initialContent = ""): void => {
-    if (messages.value.some((message) => message.id === assistantId)) return;
-    messages.value.push({
-      id: assistantId,
-      session_id: activeSessionId.value,
-      role: "assistant",
-      content: initialContent,
-      create_time: new Date().toISOString()
-    });
+  const patchAssistant = (patch: Partial<ChatMessage>): void => {
+    const index = messages.value.findIndex((message) => message.id === assistantId);
+    if (index === -1) return;
+    const next = messages.value.slice();
+    next[index] = { ...next[index], ...patch };
+    messages.value = next;
   };
 
   const appendDelta = (chunk: string): void => {
     const index = messages.value.findIndex((message) => message.id === assistantId);
-    if (index === -1) {
-      ensureAssistant(chunk);
-      return;
-    }
+    if (index === -1) return;
     const next = messages.value.slice();
-    next[index] = { ...next[index], content: next[index].content + chunk };
+    next[index] = {
+      ...next[index],
+      content: next[index].content + chunk,
+      status: "streaming"
+    };
     messages.value = next;
   };
 
-  const finalizeAssistant = (answer: string): void => {
-    const index = messages.value.findIndex((message) => message.id === assistantId);
-    if (index === -1) {
-      if (answer) ensureAssistant(answer);
-      return;
-    }
+  const setAssistantSources = (incoming: ChatSource[]): void => {
+    patchAssistant({ sources: incoming });
+    selectedSourceMessageId.value = assistantId;
+  };
+
+  const finalizeAssistant = (answer: string, incomingSources?: ChatSource[]): void => {
     if (answer) {
-      const next = messages.value.slice();
-      next[index] = { ...next[index], content: answer };
-      messages.value = next;
+      patchAssistant({ content: answer, status: "done", sources: incomingSources });
+    } else {
+      patchAssistant({ status: "done", sources: incomingSources });
+    }
+    completed = true;
+  };
+
+  const typeCachedAnswer = async (answer: string): Promise<void> => {
+    patchAssistant({ content: "", status: "streaming" });
+    for (const chunk of typewriterChunks(answer)) {
+      if (controller.signal.aborted) break;
+      appendDelta(chunk);
+      await scrollToBottom();
+      await sleep(18);
     }
   };
 
   try {
     await streamQuestion(
-      activeSessionId.value,
+      requestSessionId,
       content,
       topK.value,
       {
+        onMetadata: (metadata) => {
+          cacheHit = metadata.cache_hit === true;
+          patchAssistant({ status: cacheHit ? "pending" : "streaming" });
+        },
         onSources: (incoming) => {
-          sources.value = incoming;
+          setAssistantSources(incoming);
         },
         onDelta: (chunk) => {
           streaming.value = false;
-          appendDelta(chunk);
+          if (cacheHit) {
+            cachedAnswer += chunk;
+          } else {
+            appendDelta(chunk);
+          }
           void scrollToBottom();
         },
-        onDone: (answer, incomingSources) => {
+        onDone: async (answer, incomingSources) => {
           streaming.value = false;
-          finalizeAssistant(answer);
+          const finalAnswer = answer || cachedAnswer;
           if (incomingSources.length > 0) {
-            sources.value = incomingSources;
+            setAssistantSources(incomingSources);
           }
+          if (cacheHit && finalAnswer) {
+            await typeCachedAnswer(finalAnswer);
+            if (controller.signal.aborted) return;
+          }
+          finalizeAssistant(finalAnswer, incomingSources);
         },
         onError: (message) => {
           streaming.value = false;
+          failed = true;
+          patchAssistant({ status: "error" });
           ElMessage.error(message);
         }
       },
       controller.signal
     );
-    await loadSessions();
+    if (!generationStopped && !failed) {
+      await loadSessions(false);
+    }
   } catch (error) {
     if ((error as { name?: string })?.name !== "AbortError") {
+      patchAssistant({ status: "error" });
       ElMessage.error(extractErrorMessage(error));
     }
   } finally {
+    if (generationStopped && !completed) {
+      patchAssistant({ status: "stopped" });
+    }
     answering.value = false;
     streaming.value = false;
     streamAbortController = null;
+    generationStopped = false;
     await scrollToBottom();
   }
 }
 
 function stopGeneration() {
   if (streamAbortController) {
+    generationStopped = true;
     streamAbortController.abort();
   }
 }
@@ -427,6 +567,29 @@ function askQuickQuestion(text: string) {
   if (answering.value) return;
   question.value = text;
   void ask();
+}
+
+async function copyMessage(message: ChatMessage) {
+  if (!message.content) return;
+  try {
+    await navigator.clipboard.writeText(message.content);
+    ElMessage.success("消息已复制");
+  } catch {
+    ElMessage.error("复制失败");
+  }
+}
+
+async function regenerateMessage(message: ChatMessage) {
+  if (answering.value) return;
+  const prompt = message.role === "user"
+    ? message.content
+    : previousUserQuestion(message.id);
+  if (!prompt) {
+    ElMessage.warning("未找到可重新生成的问题");
+    return;
+  }
+  question.value = prompt;
+  await ask();
 }
 
 async function deleteSession(session: ChatSession) {
@@ -473,7 +636,7 @@ function removeLocalSession(sessionId: string) {
     createSession();
   }
   messages.value = [];
-  sources.value = [];
+  selectedSourceMessageId.value = null;
 }
 
 function handleQuestionKeydown(event: KeyboardEvent) {
@@ -482,8 +645,46 @@ function handleQuestionKeydown(event: KeyboardEvent) {
   void ask();
 }
 
-function renderMarkdown(value: string): string {
-  return md.render(value || "");
+function selectMessageSources(message: ChatMessage) {
+  if (message.role === "assistant") {
+    selectedSourceMessageId.value = message.id;
+  }
+}
+
+function latestAssistantId(items: ChatMessage[]): number | null {
+  const latestAssistant = [...items].reverse().find((message) => message.role === "assistant");
+  return latestAssistant?.id ?? null;
+}
+
+function previousUserQuestion(messageId: number): string {
+  const index = messages.value.findIndex((message) => message.id === messageId);
+  if (index <= 0) return "";
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const message = messages.value[cursor];
+    if (message.role === "user") return message.content;
+  }
+  return "";
+}
+
+function markDoneMessage(message: ChatMessage): ChatMessage {
+  return {
+    ...message,
+    sources: message.sources ?? [],
+    status: message.status ?? "done"
+  };
+}
+
+function typewriterChunks(value: string): string[] {
+  const chars = Array.from(value);
+  const chunks: string[] = [];
+  for (let index = 0; index < chars.length; index += 3) {
+    chunks.push(chars.slice(index, index + 3).join(""));
+  }
+  return chunks;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function isDraftSession(session: ChatSession): boolean {

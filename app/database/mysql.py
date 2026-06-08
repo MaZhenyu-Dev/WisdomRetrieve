@@ -53,6 +53,7 @@ def init_mysql_tables() -> None:
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
     ensure_qa_log_columns(engine)
+    ensure_chat_history_columns(engine)
 
 
 def ensure_qa_log_columns(engine: Engine) -> None:
@@ -68,6 +69,21 @@ def ensure_qa_log_columns(engine: Engine) -> None:
             "ALTER TABLE qa_logs ADD COLUMN knowledge_base_version VARCHAR(64) NULL"
         ),
         "document_ids": "ALTER TABLE qa_logs ADD COLUMN document_ids TEXT NULL",
+    }
+    with engine.begin() as connection:
+        for column_name, statement in column_sql.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
+
+
+def ensure_chat_history_columns(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "chat_history" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("chat_history")}
+    column_sql = {
+        "sources": "ALTER TABLE chat_history ADD COLUMN sources TEXT NULL",
     }
     with engine.begin() as connection:
         for column_name, statement in column_sql.items():

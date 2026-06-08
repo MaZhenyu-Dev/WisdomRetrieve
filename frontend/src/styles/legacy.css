@@ -461,6 +461,17 @@
   transform: translateY(-1px);
 }
 
+.session-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.session-entry:hover .session-item:disabled {
+  border-color: var(--line);
+  background: var(--bg-soft);
+  transform: none;
+}
+
 .session-item strong {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -517,6 +528,32 @@
   gap: 16px;
   margin: 16px -4px;
   padding: 6px 4px;
+}
+
+.load-more {
+  justify-self: center;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--ink-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    border-color var(--d-base) var(--ease-out),
+    color var(--d-base) var(--ease-out),
+    background var(--d-base) var(--ease-out);
+}
+
+.load-more:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--bg-elevated);
+  color: var(--accent-strong);
+}
+
+.load-more:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .empty-chat,
@@ -667,12 +704,51 @@
 }
 
 .message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   color: var(--ink-muted);
   font-size: 12px;
 }
 
 .message-row.user .message-meta {
-  text-align: right;
+  flex-direction: row-reverse;
+}
+
+.message-actions {
+  display: inline-flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--d-base) var(--ease-out);
+}
+
+.message-row:hover .message-actions,
+.message-row:focus-within .message-actions {
+  opacity: 1;
+}
+
+.message-actions button {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.message-actions button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.message-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .message-bubble {
@@ -693,6 +769,36 @@
 
 .thinking {
   color: var(--ink-muted);
+}
+
+.message-status {
+  color: var(--ink-muted);
+}
+
+.code-block {
+  position: relative;
+}
+
+.code-block pre {
+  padding-top: 34px;
+}
+
+.code-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--ink-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.code-copy:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .thinking span {

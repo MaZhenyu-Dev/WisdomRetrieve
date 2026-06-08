@@ -69,7 +69,15 @@ export interface ChatHistoryMessage {
   session_id: string;
   role: "user" | "assistant" | string;
   content: string;
+  sources?: ChatSource[];
   create_time: string;
+}
+
+export type MessageStatus = "pending" | "streaming" | "done" | "error" | "stopped";
+
+export interface ChatMessage extends ChatHistoryMessage {
+  sources?: ChatSource[];
+  status?: MessageStatus;
 }
 
 export interface ChatHistoryResponse {
@@ -105,7 +113,8 @@ export interface MonitorOverview {
 
 export interface StreamQuestionCallbacks {
   onSources: (sources: ChatSource[]) => void;
-  onDelta: (content: string) => void;
-  onDone: (answer: string, sources: ChatSource[]) => void;
+  onMetadata?: (metadata: { cache_hit?: boolean }) => void | Promise<void>;
+  onDelta: (content: string) => void | Promise<void>;
+  onDone: (answer: string, sources: ChatSource[]) => void | Promise<void>;
   onError?: (message: string) => void;
 }

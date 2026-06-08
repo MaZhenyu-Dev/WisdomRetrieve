@@ -121,7 +121,7 @@ export async function streamQuestion(
   let currentEvent = "";
   let dataLines: string[] = [];
 
-  const dispatch = (rawData: string) => {
+  const dispatch = async (rawData: string) => {
     if (!rawData) return;
     let payload: unknown;
     try {
@@ -130,6 +130,11 @@ export async function streamQuestion(
       return;
     }
     switch (currentEvent) {
+      case "metadata": {
+        const data = (payload ?? {}) as { cache_hit?: boolean };
+        await callbacks.onMetadata?.({ cache_hit: Boolean(data.cache_hit) });
+        break;
+      }
       case "sources":
         callbacks.onSources(Array.isArray(payload) ? (payload as ChatSource[]) : []);
         break;
@@ -138,12 +143,12 @@ export async function streamQuestion(
           payload && typeof payload === "object" && "content" in payload
             ? String((payload as { content?: unknown }).content ?? "")
             : "";
-        if (content) callbacks.onDelta(content);
+        if (content) await callbacks.onDelta(content);
         break;
       }
       case "done": {
         const data = (payload ?? {}) as { answer?: string; sources?: ChatSource[] };
-        callbacks.onDone(data.answer ?? "", Array.isArray(data.sources) ? data.sources : []);
+        await callbacks.onDone(data.answer ?? "", Array.isArray(data.sources) ? data.sources : []);
         break;
       }
       case "error": {
@@ -169,7 +174,7 @@ export async function streamQuestion(
 
         if (line === "") {
           // 空行：一条 SSE 事件结束
-          dispatch(dataLines.join("\n"));
+          await dispatch(dataLines.join("\n"));
           currentEvent = "";
           dataLines = [];
         } else if (line.startsWith("event:")) {
@@ -184,7 +189,7 @@ export async function streamQuestion(
 
     // 处理流结束时尚未派发的最后一段
     if (dataLines.length > 0 || currentEvent) {
-      dispatch(dataLines.join("\n"));
+      await dispatch(dataLines.join("\n"));
     }
   } catch (error) {
     if ((error as { name?: string })?.name === "AbortError") {

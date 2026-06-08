@@ -72,6 +72,7 @@ def answer_question_stream(
             yield from _yield_cached_stream(state)
             return
 
+        yield _stream_event("metadata", {"cache_hit": False})
         state = _rewrite_question_node(state)
         state = _hybrid_retrieve_node(state)
         state = _rerank_node(state)
@@ -124,6 +125,7 @@ def _initial_state(db: Session, session_id: str, question: str, top_k: int) -> Q
 
 def _yield_cached_stream(state: QAState) -> Iterator[dict[str, Any]]:
     sources = state.get("sources", [])
+    yield _stream_event("metadata", {"cache_hit": True})
     yield _stream_event("sources", _dump_sources(sources))
     yield _stream_event("answer_delta", {"content": state["answer"]})
     state = _write_side_effects_node(state)
@@ -300,12 +302,13 @@ def _write_side_effects_node(state: QAState) -> QAState:
             db,
             session_id=session_id,
             question_hash=state["question_hash"],
+            sources=sources,
         )
 
     if not history_refreshed and not state.get("user_history_written"):
         _append_history(db, session_id, "user", state["normalized_question"])
     if not history_refreshed:
-        _append_history(db, session_id, "assistant", answer)
+        _append_history(db, session_id, "assistant", answer, sources=sources)
 
     if not cache_hit and state.get("cache_key"):
         _write_cached_response(
@@ -365,7 +368,39 @@ def get_chat_history(
             .limit(page_size)
         )
     )
-    return total, [ChatHistoryMessage.model_validate(row) for row in rows]
+    return total, [_history_message_from_row(row) for row in rows]
+
+
+def _history_message_from_row(row: ChatHistory) -> ChatHistoryMessage:
+    return ChatHistoryMessage(
+        id=row.id,
+        session_id=row.session_id,
+        role=row.role,
+        content=row.content,
+        sources=_parse_history_sources(row.sources),
+        create_time=row.create_time,
+    )
+
+
+def _parse_history_sources(raw_sources: str | None) -> list[ChatSource]:
+    if not raw_sources:
+        return []
+    try:
+        payload = json.loads(raw_sources)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if not isinstance(payload, list):
+        return []
+
+    sources: list[ChatSource] = []
+    for source in payload:
+        if not isinstance(source, dict):
+            continue
+        try:
+            sources.append(ChatSource.model_validate(source))
+        except Exception:
+            continue
+    return sources
 
 
 def get_chat_sessions(
@@ -408,8 +443,27 @@ def _ensure_chat_session(db: Session, session_id: str, question: str) -> None:
         db.add(ChatSession(session_id=session_id, title=question[:255]))
 
 
-def _append_history(db: Session, session_id: str, role: str, content: str) -> None:
-    db.add(ChatHistory(session_id=session_id, role=role, content=content))
+def _append_history(
+    db: Session,
+    session_id: str,
+    role: str,
+    content: str,
+    sources: list[ChatSource] | None = None,
+) -> None:
+    serialized_sources = None
+    if sources:
+        serialized_sources = json.dumps(
+            [source.model_dump() for source in sources],
+            ensure_ascii=False,
+        )
+    db.add(
+        ChatHistory(
+            session_id=session_id,
+            role=role,
+            content=content,
+            sources=serialized_sources,
+        )
+    )
     _touch_chat_session(db, session_id)
     db.flush()
 
@@ -418,6 +472,7 @@ def _refresh_repeated_cache_hit_history(
     db: Session,
     session_id: str,
     question_hash: str,
+    sources: list[ChatSource] | None = None,
 ) -> bool:
     recent_rows = list(
         db.scalars(
@@ -439,6 +494,11 @@ def _refresh_repeated_cache_hit_history(
     now = datetime.now()
     user_row.create_time = now
     assistant_row.create_time = now
+    if sources:
+        assistant_row.sources = json.dumps(
+            [source.model_dump() for source in sources],
+            ensure_ascii=False,
+        )
     _touch_chat_session(db, session_id, now=now)
     db.flush()
     return True
