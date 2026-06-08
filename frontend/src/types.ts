@@ -102,3 +102,10 @@ export interface MonitorOverview {
   avg_cache_hit_response_time_ms: number;
   avg_cache_miss_response_time_ms: number;
 }
+
+export interface StreamQuestionCallbacks {
+  onSources: (sources: ChatSource[]) => void;
+  onDelta: (content: string) => void;
+  onDone: (answer: string, sources: ChatSource[]) => void;
+  onError?: (message: string) => void;
+}

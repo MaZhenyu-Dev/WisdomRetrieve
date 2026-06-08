@@ -27,18 +27,16 @@
               <strong>{{ session.title || session.session_id }}</strong>
               <span>{{ isDraftSession(session) ? "尚未发送" : formatDate(session.updated_at) }}</span>
             </button>
-            <el-tooltip content="删除会话" placement="right">
-              <el-button
-                circle
-                text
-                class="session-delete"
-                :disabled="answering"
-                :aria-label="`删除会话：${session.title || session.session_id}`"
-                @click.stop="deleteSession(session)"
-              >
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </el-tooltip>
+            <el-button
+              circle
+              text
+              class="session-delete"
+              :disabled="answering"
+              :aria-label="`删除会话：${session.title || session.session_id}`"
+              @click.stop="deleteSession(session)"
+            >
+              <el-icon><Delete /></el-icon>
+            </el-button>
           </div>
         </template>
       </div>
@@ -58,9 +56,25 @@
 
       <div ref="messageList" class="message-list">
         <div v-if="historyLoading" class="list-status">正在加载消息...</div>
-        <div v-else-if="messages.length === 0" class="empty-chat">
-          <span>尚未开始提问</span>
-          <strong>上传并索引文档后，在这里验证知识库答案和来源。</strong>
+        <div v-else-if="messages.length === 0" class="empty-chat quick-start">
+          <div class="quick-start-head">
+            <p class="eyebrow">Quick Start</p>
+            <strong>挑一个示例问题快速体验，或在下方输入自己的问题</strong>
+          </div>
+          <ul class="quick-questions">
+            <li v-for="item in QUICK_QUESTIONS" :key="item.id">
+              <button
+                type="button"
+                class="quick-question"
+                :disabled="answering"
+                @click="askQuickQuestion(item.question)"
+              >
+                <el-icon class="quick-question-icon"><component :is="item.icon" /></el-icon>
+                <span class="quick-question-text">{{ item.question }}</span>
+                <el-icon class="quick-question-arrow"><ArrowRight /></el-icon>
+              </button>
+            </li>
+          </ul>
         </div>
 
         <article
@@ -73,7 +87,7 @@
           <div v-else class="message-bubble">{{ message.content }}</div>
         </article>
 
-        <div v-if="answering" class="message-row assistant">
+        <div v-if="answering && streaming" class="message-row assistant">
           <div class="message-meta">WisdomRetrieve</div>
           <div class="message-bubble thinking">
             <span></span>
@@ -90,11 +104,21 @@
           type="textarea"
           :autosize="{ minRows: 2, maxRows: 5 }"
           placeholder="输入你的问题，例如：这份制度里报销审批流程是什么？"
+          :disabled="answering"
           @keydown="handleQuestionKeydown"
         />
-        <el-button type="primary" :loading="answering" :disabled="answering || !question.trim()" @click="ask">
+        <el-button
+          v-if="!answering"
+          type="primary"
+          :disabled="!question.trim()"
+          @click="ask"
+        >
           <el-icon><Search /></el-icon>
           提问
+        </el-button>
+        <el-button v-else type="danger" @click="stopGeneration">
+          <el-icon><CircleClose /></el-icon>
+          停止生成
         </el-button>
       </div>
     </main>
@@ -148,12 +172,24 @@
 </template>
 
 <script setup lang="ts">
-import { Delete, Plus, Search } from "@element-plus/icons-vue";
+import {
+  ArrowRight,
+  ChatLineRound,
+  CircleClose,
+  DataAnalysis,
+  Delete,
+  Document,
+  MagicStick,
+  Plus,
+  QuestionFilled,
+  Reading,
+  Search
+} from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import MarkdownIt from "markdown-it";
 import { nextTick, onMounted, ref } from "vue";
 
-import { deleteChatSession, getChatHistory, getChatSessions, sendQuestion } from "../api";
+import { deleteChatSession, getChatHistory, getChatSessions, streamQuestion } from "../api";
 import { extractErrorMessage } from "../api/http";
 import type { ChatHistoryMessage, ChatSession, ChatSource } from "../types";
 
@@ -163,16 +199,33 @@ const SESSION_PAGE_SIZE = 100;
 const HISTORY_PAGE_SIZE = 100;
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
 
+interface QuickQuestion {
+  id: string;
+  icon: typeof Document;
+  question: string;
+}
+
+const QUICK_QUESTIONS: QuickQuestion[] = [
+  { id: "summary", icon: Document, question: "请用一段话总结知识库的核心内容" },
+  { id: "process", icon: MagicStick, question: "知识库里涉及哪些关键流程或步骤？" },
+  { id: "points", icon: ChatLineRound, question: "有哪些需要特别注意的条款或风险点？" },
+  { id: "terms", icon: Reading, question: "请列出其中出现的重要术语与定义" },
+  { id: "qa", icon: QuestionFilled, question: "这份文档中提到了哪些常见问题与解答？" },
+  { id: "topics", icon: DataAnalysis, question: "根据知识库内容，给出三个最常被检索的主题" }
+];
+
 const sessions = ref<ChatSession[]>([]);
 const activeSessionId = ref(localStorage.getItem(CURRENT_SESSION_KEY) || "");
 const messages = ref<ChatHistoryMessage[]>([]);
 const sources = ref<ChatSource[]>([]);
 const question = ref("");
 const answering = ref(false);
+const streaming = ref(false);
 const sessionsLoading = ref(false);
 const historyLoading = ref(false);
 const topK = ref(5);
 const messageList = ref<HTMLElement | null>(null);
+let streamAbortController: AbortController | null = null;
 
 async function loadSessions() {
   sessionsLoading.value = true;
@@ -278,27 +331,102 @@ async function ask() {
     content,
     create_time: new Date().toISOString()
   });
+  const assistantId = localId + 1;
+  sources.value = [];
   question.value = "";
   answering.value = true;
+  streaming.value = true;
   await scrollToBottom();
 
-  try {
-    const response = await sendQuestion(activeSessionId.value, content, topK.value);
+  const controller = new AbortController();
+  streamAbortController = controller;
+
+  const ensureAssistant = (initialContent = ""): void => {
+    if (messages.value.some((message) => message.id === assistantId)) return;
     messages.value.push({
-      id: localId + 1,
+      id: assistantId,
       session_id: activeSessionId.value,
       role: "assistant",
-      content: response.answer,
+      content: initialContent,
       create_time: new Date().toISOString()
     });
-    sources.value = response.sources;
+  };
+
+  const appendDelta = (chunk: string): void => {
+    const index = messages.value.findIndex((message) => message.id === assistantId);
+    if (index === -1) {
+      ensureAssistant(chunk);
+      return;
+    }
+    const next = messages.value.slice();
+    next[index] = { ...next[index], content: next[index].content + chunk };
+    messages.value = next;
+  };
+
+  const finalizeAssistant = (answer: string): void => {
+    const index = messages.value.findIndex((message) => message.id === assistantId);
+    if (index === -1) {
+      if (answer) ensureAssistant(answer);
+      return;
+    }
+    if (answer) {
+      const next = messages.value.slice();
+      next[index] = { ...next[index], content: answer };
+      messages.value = next;
+    }
+  };
+
+  try {
+    await streamQuestion(
+      activeSessionId.value,
+      content,
+      topK.value,
+      {
+        onSources: (incoming) => {
+          sources.value = incoming;
+        },
+        onDelta: (chunk) => {
+          streaming.value = false;
+          appendDelta(chunk);
+          void scrollToBottom();
+        },
+        onDone: (answer, incomingSources) => {
+          streaming.value = false;
+          finalizeAssistant(answer);
+          if (incomingSources.length > 0) {
+            sources.value = incomingSources;
+          }
+        },
+        onError: (message) => {
+          streaming.value = false;
+          ElMessage.error(message);
+        }
+      },
+      controller.signal
+    );
     await loadSessions();
   } catch (error) {
-    ElMessage.error(extractErrorMessage(error));
+    if ((error as { name?: string })?.name !== "AbortError") {
+      ElMessage.error(extractErrorMessage(error));
+    }
   } finally {
     answering.value = false;
+    streaming.value = false;
+    streamAbortController = null;
     await scrollToBottom();
   }
+}
+
+function stopGeneration() {
+  if (streamAbortController) {
+    streamAbortController.abort();
+  }
+}
+
+function askQuickQuestion(text: string) {
+  if (answering.value) return;
+  question.value = text;
+  void ask();
 }
 
 async function deleteSession(session: ChatSession) {
