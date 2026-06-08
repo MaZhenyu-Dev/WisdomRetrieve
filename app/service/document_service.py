@@ -65,62 +65,38 @@ async def upload_pdf_document(db: Session, file: UploadFile) -> Document:
     db.refresh(document)
 
     try:
-        # 解析PDF文件内容
-        parsed_pdf = parse_pdf(file_path)
-        # 将PDF页面拆分为文本块
-        text_chunks = split_pages(parsed_pdf.pages)
-        # 构建文档块数据行列表，用于数据库存储
-        chunk_rows = [
-            DocumentChunk(
-                document_id=document.id,  # 关联的文档ID
-                chunk_index=chunk.chunk_index,  # 块在文档中的索引位置
-                page_number=chunk.page_number,  # 块所在的页码
-                file_name=document.file_name,  # 原始文件名
-                title=chunk.title,  # 块标题（如有）
-                content=chunk.content,  # 块文本内容
-                chroma_id=f"doc:{document.id}:chunk:{chunk.chunk_index}",  # Chroma向量库唯一标识
-            )
-            for chunk in text_chunks
-        ]
-
-        db.add_all(chunk_rows)
-        add_document_chunks(chunk_rows)
-
-        document.page_count = parsed_pdf.page_count
-        document.chunk_count = len(chunk_rows)
-        document.parse_status = "parsed"
-        document.error_message = None
-        db.commit()
-        refresh_knowledge_base_version()
-        db.refresh(document)
-        return document
+        return _parse_and_index_document(db, document, file_path)
     except HTTPException:
         raise
     except Exception as exc:
-        db.rollback()
-        _cleanup_failed_chroma(document.id)
-        document = db.get(Document, document.id) or document
-        document.parse_status = "failed"
-        document.error_message = str(exc)[:2000]
-        db.commit()
-        db.refresh(document)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={
-                "message": "PDF parsing failed.",
-                "file_id": document.id,
-                "error": document.error_message,
-            },
-        ) from exc
+        _mark_parse_failed(db, document.id, exc)
 
 
-def list_documents(db: Session, page: int = 1, page_size: int = 20) -> tuple[int, list[Document]]:
+def list_documents(
+    db: Session,
+    page: int = 1,
+    page_size: int = 20,
+    keyword: str | None = None,
+    parse_status: str | None = None,
+) -> tuple[int, list[Document]]:
     page = max(page, 1)
     page_size = min(max(page_size, 1), 100)
-    total = db.scalar(select(func.count()).select_from(Document)) or 0
+    filters = []
+    if keyword:
+        filters.append(Document.file_name.like(f"%{keyword.strip()}%"))
+    if parse_status:
+        filters.append(Document.parse_status == parse_status)
+
+    total_query = select(func.count()).select_from(Document)
+    query = select(Document)
+    if filters:
+        total_query = total_query.where(*filters)
+        query = query.where(*filters)
+
+    total = db.scalar(total_query) or 0
     documents = list(
         db.scalars(
-            select(Document)
+            query
             .order_by(Document.created_at.desc(), Document.id.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -129,13 +105,67 @@ def list_documents(db: Session, page: int = 1, page_size: int = 20) -> tuple[int
     return total, documents
 
 
-def delete_document(db: Session, document_id: int) -> int:
+def get_document_or_404(db: Session, document_id: int) -> Document:
     document = db.get(Document, document_id)
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found.",
         )
+    return document
+
+
+def list_document_chunks(
+    db: Session,
+    document_id: int,
+    page: int = 1,
+    page_size: int = 20,
+) -> tuple[int, list[DocumentChunk]]:
+    get_document_or_404(db, document_id)
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 100)
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(DocumentChunk)
+            .where(DocumentChunk.document_id == document_id)
+        )
+        or 0
+    )
+    chunks = list(
+        db.scalars(
+            select(DocumentChunk)
+            .where(DocumentChunk.document_id == document_id)
+            .order_by(DocumentChunk.chunk_index.asc(), DocumentChunk.id.asc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    )
+    return total, chunks
+
+
+def retry_parse_document(db: Session, document_id: int) -> Document:
+    document = get_document_or_404(db, document_id)
+    file_path = Path(document.file_path)
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document file not found.",
+        )
+
+    document.parse_status = "parsing"
+    document.error_message = None
+    db.commit()
+    db.refresh(document)
+
+    try:
+        return _parse_and_index_document(db, document, file_path, replace_existing=True)
+    except Exception as exc:
+        _mark_parse_failed(db, document.id, exc)
+
+
+def delete_document(db: Session, document_id: int) -> int:
+    document = get_document_or_404(db, document_id)
 
     file_path = Path(document.file_path)
     delete_document_chunks(document_id)
@@ -160,6 +190,67 @@ def rebuild_document_index(db: Session) -> tuple[int, str | None]:
     rebuild_document_chunks(chunks)
     version = refresh_knowledge_base_version()
     return len(chunks), version
+
+
+def _parse_and_index_document(
+    db: Session,
+    document: Document,
+    file_path: Path,
+    replace_existing: bool = False,
+) -> Document:
+    parsed_pdf = parse_pdf(file_path)
+    text_chunks = split_pages(parsed_pdf.pages)
+    chunk_rows = [
+        DocumentChunk(
+            document_id=document.id,
+            chunk_index=chunk.chunk_index,
+            page_number=chunk.page_number,
+            file_name=document.file_name,
+            title=chunk.title,
+            content=chunk.content,
+            chroma_id=f"doc:{document.id}:chunk:{chunk.chunk_index}",
+        )
+        for chunk in text_chunks
+    ]
+
+    if replace_existing:
+        delete_document_chunks(document.id)
+        db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
+        db.flush()
+
+    db.add_all(chunk_rows)
+    add_document_chunks(chunk_rows)
+
+    document.page_count = parsed_pdf.page_count
+    document.chunk_count = len(chunk_rows)
+    document.parse_status = "parsed"
+    document.error_message = None
+    db.commit()
+    refresh_knowledge_base_version()
+    db.refresh(document)
+    return document
+
+
+def _mark_parse_failed(db: Session, document_id: int, exc: Exception) -> None:
+    db.rollback()
+    _cleanup_failed_chroma(document_id)
+    document = db.get(Document, document_id)
+    if document is not None:
+        db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
+        document.page_count = 0
+        document.chunk_count = 0
+        document.parse_status = "failed"
+        document.error_message = str(exc)[:2000]
+        db.commit()
+        db.refresh(document)
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail={
+            "message": "PDF parsing failed.",
+            "file_id": document_id,
+            "error": str(exc)[:2000],
+        },
+    ) from exc
 
 
 def _delete_file(file_path: Path) -> None:

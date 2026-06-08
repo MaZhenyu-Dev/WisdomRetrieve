@@ -279,22 +279,15 @@
   transform: translateY(-12px);
 }
 
-/* Layout-level: hero-style rise */
+/* Layout-level: fade only to keep dense workspace text crisp on route changes. */
 .layout-enter-active,
 .layout-leave-active {
-  transition:
-    opacity 320ms var(--ease-out),
-    transform 320ms var(--ease-out);
+  transition: opacity 240ms var(--ease-out);
 }
 
-.layout-enter-from {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
+.layout-enter-from,
 .layout-leave-to {
   opacity: 0;
-  transform: translateY(-20px);
 }
 
 /* ---------- List enter ---------- */

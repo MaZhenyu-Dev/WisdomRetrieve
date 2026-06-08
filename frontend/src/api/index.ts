@@ -6,6 +6,8 @@ import type {
   ChatResponse,
   ChatSessionListResponse,
   DocumentIndexResponse,
+  DocumentChunkItem,
+  DocumentChunkListResponse,
   DocumentListResponse,
   DocumentUploadResponse,
   HealthResponse,
@@ -30,12 +32,24 @@ export async function getHealth(): Promise<HealthResponse> {
   return unwrap(data);
 }
 
-export async function listDocuments(): Promise<DocumentListResponse> {
+export interface DocumentListParams {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  parseStatus?: string;
+}
+
+export async function listDocuments(params: DocumentListParams = {}): Promise<DocumentListResponse> {
   const { data } = await http.get<ApiResponse<PageData<DocumentItem>>>("/api/document/list", {
-    params: { page: 1, page_size: 100 }
+    params: {
+      page: params.page ?? 1,
+      page_size: params.pageSize ?? 10,
+      keyword: params.keyword || undefined,
+      parse_status: params.parseStatus || undefined
+    }
   });
   const page = unwrap(data);
-  return { total: page.total, documents: page.items };
+  return { total: page.total, page: page.page, page_size: page.page_size, documents: page.items };
 }
 
 export async function uploadDocument(file: File): Promise<DocumentUploadResponse> {
@@ -47,6 +61,38 @@ export async function uploadDocument(file: File): Promise<DocumentUploadResponse
 
 export async function deleteDocument(documentId: number): Promise<void> {
   await http.delete(`/api/document/${documentId}`);
+}
+
+export async function retryDocument(documentId: number): Promise<DocumentItem> {
+  const { data } = await http.post<ApiResponse<DocumentItem>>(`/api/document/${documentId}/retry`);
+  return unwrap(data);
+}
+
+export interface DocumentChunkListParams {
+  page?: number;
+  pageSize?: number;
+}
+
+export async function listDocumentChunks(
+  documentId: number,
+  params: DocumentChunkListParams = {}
+): Promise<DocumentChunkListResponse> {
+  const { data } = await http.get<ApiResponse<PageData<DocumentChunkItem>>>(
+    `/api/document/${documentId}/chunks`,
+    {
+      params: {
+        page: params.page ?? 1,
+        page_size: params.pageSize ?? 10
+      }
+    }
+  );
+  const page = unwrap(data);
+  return { total: page.total, page: page.page, page_size: page.page_size, chunks: page.items };
+}
+
+export function documentPreviewUrl(documentId: number): string {
+  const baseURL = (http.defaults.baseURL ?? "") as string;
+  return `${baseURL || ""}/api/document/${encodeURIComponent(documentId)}/file`;
 }
 
 export async function rebuildIndex(): Promise<DocumentIndexResponse> {

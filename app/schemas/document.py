@@ -17,6 +17,19 @@ class DocumentResponse(BaseModel):
     updated_at: datetime
 
 
+class DocumentChunkResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    document_id: int
+    chunk_index: int
+    page_number: int
+    title: str | None
+    content: str
+    chroma_id: str
+    created_at: datetime
+
+
 class DocumentUploadData(BaseModel):
     file_id: int
     status: str

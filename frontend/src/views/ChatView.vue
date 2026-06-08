@@ -225,7 +225,7 @@ const QUICK_QUESTIONS: QuickQuestion[] = [
 ];
 
 const sessions = ref<ChatSession[]>([]);
-const activeSessionId = ref(localStorage.getItem(CURRENT_SESSION_KEY) || "");
+const activeSessionId = ref("");
 const messages = ref<ChatMessage[]>([]);
 const selectedSourceMessageId = ref<number | null>(null);
 const question = ref("");
@@ -269,10 +269,7 @@ async function loadSessions(reloadHistory = true) {
       : serverSessions;
 
     if (activeSessionId.value && !sessions.value.some((session) => session.session_id === activeSessionId.value)) {
-      activeSessionId.value = sessions.value[0]?.session_id || "";
-    }
-    if (!activeSessionId.value && sessions.value.length > 0) {
-      activeSessionId.value = sessions.value[0].session_id;
+      activeSessionId.value = "";
     }
     if (!activeSessionId.value) {
       createSession();
@@ -594,11 +591,7 @@ async function regenerateMessage(message: ChatMessage) {
 
 async function deleteSession(session: ChatSession) {
   if (isDraftSession(session)) {
-    const wasActive = activeSessionId.value === session.session_id;
     removeLocalSession(session.session_id);
-    if (wasActive && activeSessionId.value && !isActiveDraftSession()) {
-      await loadHistory();
-    }
     return;
   }
 
@@ -615,7 +608,7 @@ async function deleteSession(session: ChatSession) {
     await deleteChatSession(session.session_id);
     ElMessage.success("会话已删除");
     removeLocalSession(session.session_id);
-    await loadSessions();
+    await loadSessions(false);
   } catch (error) {
     if (error !== "cancel" && error !== "close") {
       ElMessage.error(extractErrorMessage(error));
@@ -628,15 +621,11 @@ function removeLocalSession(sessionId: string) {
   sessions.value = sessions.value.filter((session) => session.session_id !== sessionId);
   if (!wasActive) return;
 
-  activeSessionId.value = sessions.value[0]?.session_id || "";
-  if (activeSessionId.value) {
-    localStorage.setItem(CURRENT_SESSION_KEY, activeSessionId.value);
-  } else {
-    localStorage.removeItem(CURRENT_SESSION_KEY);
-    createSession();
-  }
+  localStorage.removeItem(CURRENT_SESSION_KEY);
   messages.value = [];
   selectedSourceMessageId.value = null;
+  activeSessionId.value = "";
+  createSession();
 }
 
 function handleQuestionKeydown(event: KeyboardEvent) {

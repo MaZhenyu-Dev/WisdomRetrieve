@@ -29,9 +29,29 @@ export interface DocumentItem {
   updated_at: string;
 }
 
+export interface DocumentChunkItem {
+  id: number;
+  document_id: number;
+  chunk_index: number;
+  page_number: number;
+  title: string | null;
+  content: string;
+  chroma_id: string;
+  created_at: string;
+}
+
 export interface DocumentListResponse {
   total: number;
+  page: number;
+  page_size: number;
   documents: DocumentItem[];
+}
+
+export interface DocumentChunkListResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  chunks: DocumentChunkItem[];
 }
 
 export interface DocumentUploadResponse {
