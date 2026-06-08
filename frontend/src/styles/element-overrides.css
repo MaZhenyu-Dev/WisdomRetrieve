@@ -265,7 +265,6 @@
   color: var(--ink) !important;
   border-radius: var(--r-3) !important;
   box-shadow: var(--shadow-md) !important;
-  backdrop-filter: blur(12px);
   font-size: var(--text-sm);
 }
 
@@ -292,7 +291,6 @@
   border-radius: var(--r-4) !important;
   box-shadow: var(--shadow-lg) !important;
   color: var(--ink) !important;
-  backdrop-filter: blur(20px);
 }
 
 .el-message-box__title,
@@ -304,7 +302,6 @@
 /* ---------- Loading spinner ---------- */
 .el-loading-mask {
   background-color: rgba(10, 10, 12, 0.6) !important;
-  backdrop-filter: blur(4px);
 }
 
 /* ---------- Upload ---------- */
