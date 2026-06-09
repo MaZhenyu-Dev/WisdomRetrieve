@@ -2,7 +2,7 @@
   <header :class="['landing-nav', { 'is-solid': isSolid }]">
     <div class="landing-nav__inner">
       <a class="brand" href="#top" @click.prevent="$emit('top')">
-        <img class="brand-mark" :src="brandLogo" alt="WisdomRetrieve" />
+        <img class="brand-mark" :src="brandLogo" alt="WisdomRAG" />
         <div class="brand-text">
           <strong>WisdomRAG</strong>
         </div>

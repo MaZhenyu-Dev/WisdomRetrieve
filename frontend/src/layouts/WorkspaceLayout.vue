@@ -2,10 +2,9 @@
   <div class="workspace-shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">WR</div>
+        <img class="brand-mark" :src="brandLogo" alt="WisdomRAG" />
         <div>
-          <strong>WisdomRetrieve</strong>
-          <span>企业知识中枢</span>
+          <strong>WisdomRAG</strong>
         </div>
       </div>
 
@@ -55,6 +54,7 @@ import { ChatDotRound, Collection, Monitor, SwitchButton } from "@element-plus/i
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+import brandLogo from "../assets/svg/langchain-color.svg";
 import { getHealth } from "../api";
 import { clearAuthSession, getAuthUser } from "../utils/auth";
 

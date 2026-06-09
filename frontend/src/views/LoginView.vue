@@ -8,8 +8,8 @@
       :enter="{ opacity: 1, y: 0, transition: { duration: 500, ease: [0.16, 1, 0.3, 1] } }"
     >
       <RouterLink to="/" class="login__brand">
-        <span class="login__mark">WR</span>
-        <span class="login__brand-name">WisdomRetrieve</span>
+        <img class="login__mark" :src="brandLogo" alt="WisdomRAG" />
+        <span class="login__brand-name">WisdomRAG</span>
       </RouterLink>
       <RouterLink to="/" class="login__back">
         <el-icon><ArrowLeft /></el-icon>
@@ -215,6 +215,7 @@ import { ElMessage } from "element-plus";
 import { ArrowLeft, ArrowRight, View, Hide } from "@element-plus/icons-vue";
 
 import MagneticButton from "../components/ui/MagneticButton.vue";
+import brandLogo from "../assets/svg/langchain-color.svg";
 import { getAuthUser, setAuthSession, clearAuthSession, verifyCredentials } from "../utils/auth";
 
 const router = useRouter();
@@ -316,18 +317,19 @@ function login() {
 }
 
 .login__mark {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   background: var(--bg-elevated);
   color: var(--ink);
-  font-family: var(--font-mono);
-  font-weight: 800;
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  object-fit: contain;
+  transition: border-color var(--d-base) var(--ease-out);
+}
+
+.login__brand:hover .login__mark {
+  border-color: var(--accent);
 }
 
 .login__brand-name {
