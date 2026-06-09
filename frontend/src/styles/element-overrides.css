@@ -3,15 +3,25 @@
    Apply dark editorial theme to Element Plus
    ============================================================ */
 
-/* ---------- Buttons ---------- */
+/* ---------- Buttons ----------
+   Element Plus 内部使用 `background-color: var(--el-button-bg-color)` 来渲染
+   按钮填充。若在 .el-button 上直接写 `background-color: transparent`，会
+   覆盖变量导致 primary/warning/danger 按钮的填充丢失。这里改为设置变量
+   默认值，让 Element Plus 内部规则继续生效。 */
 .el-button {
+  --el-button-bg-color: transparent;
+  --el-button-text-color: var(--ink-soft);
+  --el-button-border-color: var(--line);
+  --el-button-hover-bg-color: var(--bg-soft);
+  --el-button-hover-text-color: var(--ink);
+  --el-button-hover-border-color: var(--line-strong);
+  --el-button-active-bg-color: var(--bg-soft);
+  --el-button-active-text-color: var(--ink);
+  --el-button-active-border-color: var(--line-strong);
   border-radius: var(--r-2);
   font-family: var(--font-sans);
   font-weight: var(--w-medium);
   letter-spacing: 0;
-  border-color: var(--line);
-  background-color: transparent;
-  color: var(--ink-soft);
   transition:
     background-color var(--d-base) var(--ease-out),
     border-color var(--d-base) var(--ease-out),
@@ -22,9 +32,6 @@
 
 .el-button:hover {
   transform: translateY(-1px);
-  color: var(--ink);
-  border-color: var(--line-strong);
-  background-color: var(--bg-soft);
 }
 
 .el-button:active {
@@ -34,17 +41,99 @@
 .el-button--primary {
   --el-button-bg-color: var(--accent);
   --el-button-border-color: var(--accent);
+  --el-button-text-color: var(--accent-ink);
   --el-button-hover-bg-color: var(--accent-strong);
   --el-button-hover-border-color: var(--accent-strong);
+  --el-button-hover-text-color: var(--accent-ink);
   --el-button-active-bg-color: var(--accent-strong);
   --el-button-active-border-color: var(--accent-strong);
-  color: var(--accent-ink);
+  --el-button-active-text-color: var(--accent-ink);
   font-weight: var(--w-semibold);
 }
 
 .el-button--primary:hover {
   box-shadow: 0 8px 24px var(--accent-glow);
-  color: var(--accent-ink);
+}
+
+.el-button--primary:active {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Warning button (used by MessageBox confirm when type="warning") */
+.el-button--warning {
+  --el-button-bg-color: var(--warning);
+  --el-button-border-color: var(--warning);
+  --el-button-text-color: var(--ink-inverse);
+  --el-button-hover-bg-color: #f59e0b;
+  --el-button-hover-border-color: #f59e0b;
+  --el-button-hover-text-color: var(--ink-inverse);
+  --el-button-active-bg-color: #d97706;
+  --el-button-active-border-color: #d97706;
+  --el-button-active-text-color: var(--ink-inverse);
+  font-weight: var(--w-semibold);
+}
+
+.el-button--warning:hover {
+  box-shadow: 0 8px 24px rgba(251, 191, 36, 0.32);
+}
+
+.el-button--danger {
+  --el-button-bg-color: var(--danger);
+  --el-button-border-color: var(--danger);
+  --el-button-text-color: var(--ink-inverse);
+  --el-button-hover-bg-color: #ef4444;
+  --el-button-hover-border-color: #ef4444;
+  --el-button-hover-text-color: var(--ink-inverse);
+  --el-button-active-bg-color: #dc2626;
+  --el-button-active-border-color: #dc2626;
+  --el-button-active-text-color: var(--ink-inverse);
+  font-weight: var(--w-semibold);
+}
+
+.el-button--success {
+  --el-button-bg-color: var(--success);
+  --el-button-border-color: var(--success);
+  --el-button-text-color: var(--ink-inverse);
+  --el-button-hover-bg-color: #22c55e;
+  --el-button-hover-border-color: #22c55e;
+  --el-button-hover-text-color: var(--ink-inverse);
+  --el-button-active-bg-color: #16a34a;
+  --el-button-active-border-color: #16a34a;
+  --el-button-active-text-color: var(--ink-inverse);
+  font-weight: var(--w-semibold);
+}
+
+/* Disabled state: Element Plus 默认使用 --el-color-primary-light-9 等
+   极暗色，在深色主题上几乎不可见。这里覆写为有可读对比度的样式。 */
+.el-button.is-disabled,
+.el-button.is-disabled:hover {
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.el-button--primary.is-disabled,
+.el-button--primary.is-disabled:hover {
+  --el-button-bg-color: var(--bg-soft);
+  --el-button-border-color: var(--line);
+  --el-button-text-color: var(--ink-muted);
+  box-shadow: none;
+}
+
+.el-button--warning.is-disabled,
+.el-button--warning.is-disabled:hover {
+  --el-button-bg-color: var(--bg-soft);
+  --el-button-border-color: var(--line);
+  --el-button-text-color: var(--ink-muted);
+  box-shadow: none;
+}
+
+.el-button--danger.is-disabled,
+.el-button--danger.is-disabled:hover {
+  --el-button-bg-color: var(--bg-soft);
+  --el-button-border-color: var(--line);
+  --el-button-text-color: var(--ink-muted);
+  box-shadow: none;
 }
 
 .el-button--text,

@@ -572,7 +572,9 @@
   margin-top: 16px;
   min-height: 0;
   overflow-y: auto;
-  padding-right: 4px;
+  /* top padding reserves room so the first item's top border is not clipped
+     by the active state's translateY(-1px) lift against overflow: hidden */
+  padding: 2px 4px 0 0;
 }
 
 .session-entry {
@@ -597,11 +599,18 @@
     transform var(--d-base) var(--ease-out);
 }
 
-.session-entry:hover .session-item,
-.session-entry.active .session-item {
+.session-entry:hover .session-item {
   border-color: var(--accent);
   background: var(--bg-elevated);
   transform: translateY(-1px);
+}
+
+.session-entry.active .session-item {
+  border-color: var(--accent);
+  background: var(--bg-elevated);
+  /* keep the active item in place so the first card's top border stays intact
+     and is not visually overlapped by the panel header */
+  box-shadow: 0 0 0 1px var(--accent) inset;
 }
 
 .session-item:disabled {
@@ -969,6 +978,57 @@
   align-items: end;
   padding-top: 12px;
   border-top: 1px solid var(--line);
+}
+
+/* ChatGPT-style composer textarea: starts at one row, same height as the
+   send button next to it, then grows as the user keeps typing or hits
+   Shift+Enter to insert new lines. */
+.composer .el-textarea__inner {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  line-height: 20px;
+  resize: none;
+  /* avoid a flash of vertical scrollbar on the first expansion */
+  overflow-y: hidden;
+}
+
+/* Paper-plane send button, matches the homepage ChatDemo composer */
+.composer__send {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-2);
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+  transition:
+    background-color var(--d-base) var(--ease-out),
+    transform var(--d-base) var(--ease-out),
+    box-shadow var(--d-base) var(--ease-out);
+}
+
+.composer__send .el-icon {
+  font-size: 18px;
+}
+
+.composer__send:hover:not(:disabled) {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px var(--accent-glow);
+}
+
+.composer__send:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.composer__send:disabled {
+  background: var(--bg-elevated);
+  color: var(--ink-faint);
+  cursor: not-allowed;
 }
 
 .markdown-body :first-child {

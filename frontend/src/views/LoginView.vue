@@ -134,13 +134,13 @@
               :initial="{ opacity: 0, y: 10 }"
               :enter="{ opacity: 1, y: 0, transition: { delay: 560, duration: 500 } }"
             >
-              <label for="login-token">访问 Token</label>
+              <label for="login-token">密码</label>
               <div class="field__line field__line--with-action">
                 <input
                   id="login-token"
                   v-model="token"
                   :type="showToken ? 'text' : 'password'"
-                  placeholder="输入任意本地 Token"
+                  placeholder="请输入密码"
                   autocomplete="current-password"
                   @blur="validateField('token')"
                 />
@@ -215,7 +215,7 @@ import { ElMessage } from "element-plus";
 import { ArrowLeft, ArrowRight, View, Hide } from "@element-plus/icons-vue";
 
 import MagneticButton from "../components/ui/MagneticButton.vue";
-import { getAuthUser, setAuthSession, clearAuthSession } from "../utils/auth";
+import { getAuthUser, setAuthSession, clearAuthSession, verifyCredentials } from "../utils/auth";
 
 const router = useRouter();
 
@@ -261,6 +261,13 @@ function login() {
   if (!okT) triggerShake("token");
   if (!okU || !okT) {
     ElMessage.warning("请补全登录信息");
+    return;
+  }
+
+  if (!verifyCredentials(username.value, token.value)) {
+    errors.token = "用户名或密码不正确";
+    triggerShake("token");
+    ElMessage.error("用户名或密码不正确");
     return;
   }
 

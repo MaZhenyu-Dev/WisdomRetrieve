@@ -100,7 +100,7 @@
             <span class="dot dot--r" />
             <span class="dot dot--y" />
             <span class="dot dot--g" />
-            <div class="mock-app__title">wisdomretrieve · chat</div>
+            <div class="mock-app__title">wisdomrag · chat</div>
           </div>
           <div class="mock-app__body">
             <div class="mock-side">

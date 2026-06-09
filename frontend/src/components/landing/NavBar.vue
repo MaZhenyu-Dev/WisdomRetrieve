@@ -2,10 +2,9 @@
   <header :class="['landing-nav', { 'is-solid': isSolid }]">
     <div class="landing-nav__inner">
       <a class="brand" href="#top" @click.prevent="$emit('top')">
-        <div class="brand-mark">WR</div>
+        <img class="brand-mark" :src="brandLogo" alt="WisdomRetrieve" />
         <div class="brand-text">
-          <strong>WisdomRetrieve</strong>
-          <span>企业知识中枢</span>
+          <strong>WisdomRAG</strong>
         </div>
       </a>
 
@@ -36,6 +35,7 @@
 <script setup lang="ts">
 import { ArrowRight } from "@element-plus/icons-vue";
 
+import brandLogo from "../../assets/svg/langchain-color.svg";
 import MagneticButton from "../ui/MagneticButton.vue";
 
 defineProps<{
@@ -104,15 +104,12 @@ const links = [
 .brand-mark {
   width: 32px;
   height: 32px;
-  display: grid;
-  place-items: center;
+  padding: 4px;
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   background: var(--bg-elevated);
   color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 800;
+  object-fit: contain;
   transition: border-color var(--d-base) var(--ease-out);
 }
 

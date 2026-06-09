@@ -26,24 +26,27 @@
             <a class="foot-link" href="#" @click.prevent>技术白皮书</a>
             <a class="foot-link" href="#" @click.prevent>API 文档</a>
             <a class="foot-link" href="#" @click.prevent>更新日志</a>
-            <a class="foot-link" href="#" @click.prevent>GitHub</a>
+            <a class="foot-link" href="https://github.com/MaZhenyu-Dev" target="_blank" rel="noopener noreferrer">GitHub</a>
           </div>
           <div class="foot-col">
             <div class="foot-col__head">联系</div>
-            <a class="foot-link" href="mailto:hi@wisdomretrieve.dev">hi@wisdomretrieve.dev</a>
-            <span class="foot-link foot-link--mute">北京 · 上海 · 远程</span>
-            <span class="foot-link foot-link--mute">v1.0 · 2025</span>
+            <a class="foot-link" href="mailto:2283388143@qq.com">2283388143@qq.com</a>
+            <span class="foot-link foot-link--mute">北京</span>
+            <span class="foot-link foot-link--mute">v1.0 · 2026</span>
           </div>
-        </div>
+        </div>  
       </div>
 
-      <div class="foot-giant" aria-hidden="true">WisdomRetrieve</div>
+      <div class="foot-giant" ref="giantRef" aria-hidden="true">
+        <span class="foot-giant__layer foot-giant__base">WisdomRAG</span>
+        <span class="foot-giant__layer foot-giant__strokes">WisdomRAG</span>
+      </div>
 
       <div class="foot-bottom">
-        <span>© 2025 WisdomRetrieve</span>
+        <span>© 2026 WisdomRAG</span>
         <span class="foot-bottom__sep">·</span>
         <span>Built for teams that read carefully.</span>
-        <span class="foot-bottom__push">Crafted with care · Not generated</span>
+        <span class="foot-bottom__push">Crafted with care · MaZhenyu-Dev</span>
       </div>
     </div>
   </footer>
@@ -51,6 +54,7 @@
 
 <script setup lang="ts">
 import { ArrowRight } from "@element-plus/icons-vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 
 import MagneticButton from "../ui/MagneticButton.vue";
 
@@ -58,6 +62,77 @@ defineEmits<{
   (e: "try"): void;
   (e: "jump", id: string): void;
 }>();
+
+// 仿 LangChain 官方底部的"描边扫描"效果：
+// 两层相同的文字，底色是常驻的淡色描边层，描边层用 radial-gradient 蒙版
+// 按滚动进度从左到右划过，描边颜色仅在蒙版范围内可见。
+const giantRef = ref<HTMLElement | null>(null);
+let rafId: number | null = null;
+let targetX = -1000;
+let currentX = -1000;
+
+function tick() {
+  if (!giantRef.value) {
+    rafId = null;
+    return;
+  }
+  const rect = giantRef.value.getBoundingClientRect();
+  const vh = window.innerHeight;
+  const radius = Math.max(160, rect.width * 0.18);
+
+  // 关键：进度对齐 LangChain —— 当 footer 底到达视口底时为 1，
+  // 这样无论页面长短，只要滚到底，光束都会停在 wordmark 右侧
+  const footer = giantRef.value.closest<HTMLElement>(".site-foot");
+  if (!footer) {
+    rafId = null;
+    return;
+  }
+  const footerRect = footer.getBoundingClientRect();
+  const startOffset = rect.height * 0.1;
+
+  const totalRange = footerRect.bottom - rect.top - startOffset;
+  const scrolled = vh - rect.top - startOffset;
+  const progress = Math.max(0, Math.min(1, scrolled / totalRange));
+
+  // 关键：targetX 终点 = width - radius（光束停在 wordmark 右侧，不是越过去）
+  targetX = -radius + progress * rect.width;
+
+  // 缓动：往目标 x 方向逼近
+  currentX += (targetX - currentX) * 0.12;
+
+  const grad = `radial-gradient(${radius}px at ${currentX}px 50%, black 0%, rgba(0,0,0,0.3) 100%)`;
+  giantRef.value.style.setProperty("--strokes-mask", grad);
+
+  if (Math.abs(targetX - currentX) > 0.3) {
+    rafId = requestAnimationFrame(tick);
+  } else {
+    // 收尾：snap 到目标，避免永远循环
+    currentX = targetX;
+    const finalGrad = `radial-gradient(${radius}px at ${currentX}px 50%, black 0%, rgba(0,0,0,0.3) 100%)`;
+    giantRef.value.style.setProperty("--strokes-mask", finalGrad);
+    rafId = null;
+  }
+}
+
+function onScroll() {
+  if (rafId === null) {
+    rafId = requestAnimationFrame(tick);
+  }
+}
+
+onMounted(() => {
+  currentX = -1000;
+  targetX = -1000;
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", onScroll);
+  onScroll();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", onScroll);
+  window.removeEventListener("resize", onScroll);
+  if (rafId !== null) cancelAnimationFrame(rafId);
+});
 </script>
 
 <style scoped>
@@ -144,24 +219,38 @@ defineEmits<{
 .foot-link--mute::after { display: none; }
 
 .foot-giant {
+  position: relative;
   font-family: var(--font-display);
-  font-size: clamp(80px, 18vw, 280px);
   font-weight: 700;
-  letter-spacing: var(--track-tight);
-  color: transparent;
-  -webkit-text-stroke: 1px var(--line-strong);
-  text-stroke: 1px var(--line-strong);
-  line-height: 0.85;
+  font-size: clamp(80px, 16vw, 240px);
+  letter-spacing: -0.04em;
+  line-height: 0.95;
   text-align: center;
   margin: var(--s-7) 0;
   user-select: none;
   pointer-events: none;
+}
+.foot-giant__layer {
+  display: block;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
   white-space: nowrap;
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--line-strong) 0%, transparent 80%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+}
+.foot-giant__base {
+  color: var(--ink-faint);
+  opacity: 0.18;
+}
+.foot-giant__strokes {
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--accent);
+  -webkit-mask-image: var(--strokes-mask, radial-gradient(0px at -9999px 50%, black, transparent));
+          mask-image: var(--strokes-mask, radial-gradient(0px at -9999px 50%, black, transparent));
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  opacity: 0.95;
 }
 
 .foot-bottom {

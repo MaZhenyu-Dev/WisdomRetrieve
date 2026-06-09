@@ -113,20 +113,21 @@
         <el-input
           v-model="question"
           type="textarea"
-          :autosize="{ minRows: 2, maxRows: 5 }"
+          :autosize="{ minRows: 1, maxRows: 8 }"
           placeholder="输入你的问题，例如：这份制度里报销审批流程是什么？"
           :disabled="answering"
           @keydown="handleQuestionKeydown"
         />
-        <el-button
+        <button
           v-if="!answering"
-          type="primary"
+          type="button"
+          class="composer__send"
           :disabled="!question.trim()"
+          :aria-label="'提问'"
           @click="ask"
         >
-          <el-icon><Search /></el-icon>
-          提问
-        </el-button>
+          <el-icon><Promotion /></el-icon>
+        </button>
         <el-button v-else type="danger" @click="stopGeneration">
           <el-icon><CircleClose /></el-icon>
           停止生成
@@ -192,9 +193,9 @@ import {
   Document,
   MagicStick,
   Plus,
+  Promotion,
   QuestionFilled,
-  Reading,
-  Search
+  Reading
 } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { computed, nextTick, onMounted, ref } from "vue";

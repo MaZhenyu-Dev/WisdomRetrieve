@@ -1,6 +1,17 @@
 const TOKEN_KEY = "wisdomretrieve_token";
 const USER_KEY = "wisdomretrieve_user";
 
+// 后期接入后端鉴权时,移除该表并改用 verifyCredentials 调后端接口
+const ACCOUNTS: Record<string, string> = {
+  admin: "demo666"
+};
+
+export function verifyCredentials(username: string, password: string): boolean {
+  const u = username.trim();
+  const p = password;
+  return Boolean(ACCOUNTS[u]) && ACCOUNTS[u] === p;
+}
+
 export function getAuthToken(): string {
   return localStorage.getItem(TOKEN_KEY) || "";
 }

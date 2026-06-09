@@ -6,10 +6,6 @@
         <h2 class="demo__title">
           试试看，<br />它<span class="accent">真的</span>在答。
         </h2>
-        <p class="demo__intro">
-          点击下列问题，观看从检索到生成的完整链路。<br />
-          引用卡片可点击，会在答案中标记对应位置。
-        </p>
       </div>
     </header>
 
@@ -47,12 +43,22 @@
         <div ref="scrollRef" class="panel__body">
           <!-- Empty state -->
           <div v-if="!messages.length" class="panel__empty">
-            <svg viewBox="0 0 24 24" fill="none" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.2" opacity="0.4"/>
-              <path d="M9 10a3 3 0 015 1.7c0 1.5-2 2-2 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-              <circle cx="12" cy="17" r="0.8" fill="currentColor"/>
-            </svg>
-            <p>选一个问题，或直接输入</p>
+            <div class="empty-orb">
+              <div class="empty-orb__halo" />
+              <svg class="empty-orb__icon" viewBox="0 0 24 24" fill="none" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 6h16v10H8l-4 4V6z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                <path d="M8 10h8M8 13h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              <span class="empty-orb__sparkle s1" />
+              <span class="empty-orb__sparkle s2" />
+            </div>
+            <p class="empty-title">开始你的第一次检索</p>
+            <p class="empty-sub">点左侧问题，或在下方直接输入</p>
+            <div class="empty-tags">
+              <span class="empty-tag"># 差旅</span>
+              <span class="empty-tag"># 入职</span>
+              <span class="empty-tag"># 制度</span>
+            </div>
           </div>
 
           <!-- Messages -->
@@ -418,14 +424,6 @@ if (typeof window !== "undefined") {
   font-style: italic;
   color: var(--accent);
 }
-.demo__intro {
-  font-size: var(--text-md);
-  color: var(--ink-muted);
-  line-height: 1.7;
-  letter-spacing: var(--track-snug);
-  max-width: 380px;
-  justify-self: end;
-}
 
 .demo__stage {
   display: grid;
@@ -566,18 +564,78 @@ if (typeof window !== "undefined") {
 
 .panel__empty {
   flex: 1;
-  display: grid;
-  place-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
   text-align: center;
-  color: var(--ink-muted);
-  gap: 12px;
+  position: relative;
+  padding: var(--s-5);
 }
-.panel__empty p {
+.empty-orb {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, var(--accent-soft) 0%, transparent 70%);
+  margin-bottom: 4px;
+}
+.empty-orb__halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  box-shadow: 0 0 24px var(--accent-soft);
+}
+.empty-orb__icon {
+  color: var(--accent);
+  z-index: 1;
+}
+.empty-orb__sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.6;
+  animation: float 3s var(--ease-out) infinite;
+}
+.empty-orb__sparkle.s1 { top: 8px; right: 14px; }
+.empty-orb__sparkle.s2 { bottom: 14px; left: 10px; animation-delay: 1.2s; }
+.empty-title {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: var(--track-snug);
+}
+.empty-sub {
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: var(--track-wide);
-  text-transform: uppercase;
   color: var(--ink-muted);
+  letter-spacing: var(--track-wide);
+  margin: 0;
+}
+.empty-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.empty-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  letter-spacing: var(--track-wide);
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50%      { transform: translateY(-4px); opacity: 0.9; }
 }
 
 .msg {
